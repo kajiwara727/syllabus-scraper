@@ -2,21 +2,20 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"sync"
 
 	"syllabus-scraper/domain"
 	"syllabus-scraper/infrastructure"
 	"syllabus-scraper/usecase"
 )
 
-var syllabusCache = make(map[string][]domain.Syllabus)
-var cacheMutex sync.RWMutex
-
 func main() {
-	repo := infrastructure.NewSyllabusAPI()
+	// 外部APIの代わりにJSONファイルを読み込むリポジトリを使用
+	repo, err := infrastructure.NewSyllabusJSONRepository("all_syllabuses.json")
+	if err != nil {
+		log.Fatalf("Failed to load JSON data: %v", err)
+	}
 	uc := usecase.NewSyllabusUsecase(repo)
 
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -41,35 +40,11 @@ func main() {
 			return
 		}
 
-		term := ""
-		if query.Term != nil {
-			term = *query.Term
-		}
-		cacheKey := fmt.Sprintf("%s-%s-%s-%v-%v", query.Faculty, query.Year, term, query.Week, query.Period)
-
-		// 1. キャッシュの確認
-		cacheMutex.RLock()
-		if cachedResult, ok := syllabusCache[cacheKey]; ok {
-			cacheMutex.RUnlock()
-			log.Println("Cache hit:", cacheKey) // シンプルなメッセージに変更
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(cachedResult)
-			return
-		}
-		cacheMutex.RUnlock()
-
-		// 2. サーバーからデータ取得
-		log.Println("Fetching from server:", cacheKey) // シンプルなメッセージに変更
 		result, err := uc.GetSyllabus(query)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-
-		// 3. キャッシュに保存
-		cacheMutex.Lock()
-		syllabusCache[cacheKey] = result
-		cacheMutex.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)

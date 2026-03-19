@@ -11,6 +11,7 @@ import (
 	"syllabus-scraper/domain"
 )
 
+// APIのレスポンスをマッピング
 type AuraResponse struct {
 	Actions []struct {
 		State       string `json:"state"`
@@ -22,6 +23,7 @@ type AuraResponse struct {
 	} `json:"actions"`
 }
 
+// Aura APIが返すシラバスのデータ構造
 type SyllabusData struct {
 	ID            string `json:"Id"`
 	CourseName    string `json:"R_SlCourseName__c"`
@@ -89,7 +91,7 @@ func (s *SyllabusAPI) GetSyllabus(query domain.SyllabusQuery) ([]domain.Syllabus
 							"week":               query.Week,
 							"period":             query.Period,
 							"professionalCareer": nil,
-							"limits":             100,
+							"limits":             10000,
 						},
 					},
 					"cacheable":      false,
